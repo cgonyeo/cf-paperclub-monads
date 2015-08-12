@@ -80,15 +80,18 @@ func normalImpl(str *mystr) *mystr {
     return res.str
 }
 
+func dec2Num(str *mystr) Maybe {
+    return Chain(Chain(Unit(str), decNum), decNum)
+}
+
 func monadicImpl(str *mystr) *mystr {
-    res := Chain(Chain(Chain(Chain(Chain(Chain(
+    res := Chain(Chain(Chain(Chain(Chain(
             Unit(str),
             incNum),
             decNum),
             incNum),
             decNum),
-            decNum),
-            decNum)
+            dec2Num)
     return res.str
 }
 
@@ -101,7 +104,7 @@ func main() {
                             str.num, str.msg)
     }
 
-    str = monadicImpl(&mystr{num: 3, msg: ""})
+    str = normalImpl(&mystr{num: 1, msg: ""})
     if str == nil {
         fmt.Printf("Computation failed\n")
     } else {
@@ -109,7 +112,7 @@ func main() {
                             str.num, str.msg)
     }
 
-    str = normalImpl(&mystr{num: 1, msg: ""})
+    str = monadicImpl(&mystr{num: 3, msg: ""})
     if str == nil {
         fmt.Printf("Computation failed\n")
     } else {

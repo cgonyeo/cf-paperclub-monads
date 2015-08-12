@@ -311,6 +311,22 @@ str = normalImpl(&amp;mystr{num: <span class="dv">1</span>, msg: <span class="st
             decNum)
     <span class="kw">return</span> res.str
 }</code></pre></div>
+</section><section id="easy-glue" class="slide level2">
+<h1>Easy glue</h1>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go"><span class="kw">func</span> dec2Num(str *mystr) Maybe {
+    <span class="kw">return</span> Chain(Chain(Unit(str), decNum), decNum)
+}
+
+<span class="kw">func</span> monadicImpl(str *mystr) *mystr {
+    res := Chain(Chain(Chain(Chain(Chain(
+            Unit(str),
+            incNum),
+            decNum),
+            incNum),
+            decNum),
+            dec2Num)
+    <span class="kw">return</span> res.str
+}</code></pre></div>
 </section><section id="what-happens-1" class="slide level2">
 <h1>What happens?</h1>
 <div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go">str = monadicImpl(&amp;mystr{num: <span class="dv">3</span>, msg: <span class="st">&quot;&quot;</span>})
@@ -449,6 +465,23 @@ fmt.Printf(<span class="st">&quot;Possible locations after 3 turns: </span><span
     fmt.Printf(<span class="st">&quot;(%d,%d), &quot;</span>, pos.x, pos.y)
 }
 fmt.Printf(<span class="st">&quot;</span><span class="ch">\n</span><span class="st">&quot;</span>)</code></pre></div>
+</section><section id="audience-participation-1" class="slide level2">
+<h1>Audience participation</h1>
+<p>What would <code>Unit</code> and <code>Chain</code> be for lists?</p>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go"><span class="kw">func</span> Unit(val []<span class="dt">byte</span>) Either {
+    <span class="kw">return</span> Either{
+        err: <span class="ot">nil</span>,
+        val: val,
+    }
+}
+
+<span class="kw">func</span> Chain(val Either, f <span class="kw">func</span>([]<span class="dt">byte</span>) Either) Either {
+    <span class="kw">if</span> val.err != <span class="ot">nil</span> {
+        <span class="kw">return</span> Either{val.err, <span class="ot">nil</span>}
+    } <span class="kw">else</span> {
+        <span class="kw">return</span> f(val.val)
+    }
+}</code></pre></div>
 </section><section id="monads" class="slide level2">
 <h1>Monads!</h1>
 <div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go"><span class="kw">func</span> Unit(val Position) []Position {
@@ -482,6 +515,34 @@ fmt.Printf(<span class="st">&quot;Possible locations after 3 turns: </span><span
 fmt.Printf(<span class="st">&quot;</span><span class="ch">\n</span><span class="st">&quot;</span>)</code></pre></div>
 </section><section id="demo-2" class="slide level2">
 <h1>Demo</h1>
+</section></section>
+<section><section id="advanced-usage" class="titleslide slide level1"><h1>Advanced usage</h1></section><section id="control-flow" class="slide level2">
+<h1>Control Flow</h1>
+<p>Haskell's type system allows you to write code generic to any monad, such as better control flow.</p>
+<p>For example:</p>
+<p><code>forM</code> is roughly equivalent to a <code>for _, thing := range stuff</code> in go.</p>
+<p><code>when</code> is roughly equivalent to an <code>if</code> statement.</p>
+</section><section id="databases" class="slide level2">
+<h1>Databases</h1>
+<p>Designing a database library with monads gets you automatic transaction conflict resolution.</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"> H.session conn <span class="fu">$</span> H.tx <span class="dt">Nothing</span> <span class="fu">$</span> <span class="kw">do</span>
+     (username,age) <span class="ot">&lt;-</span> H.singleEx [H.stmt<span class="fu">|</span>
+             <span class="dt">SELECT</span> username, age <span class="dt">FROM</span> users <span class="dt">WHERE</span> id<span class="fu">=?</span>
+         <span class="fu">|</span>] userId
+     <span class="kw">if</span> age <span class="fu">&gt;</span> <span class="dv">21</span>
+         <span class="kw">then</span> H.unitEx <span class="fu">$</span> [H.stmt<span class="fu">|</span>
+                <span class="dt">INSERT</span> <span class="dt">INTO</span> members (username,age,uid) <span class="dt">VALUES</span> (<span class="fu">?</span>,<span class="fu">?</span>,<span class="fu">?</span>)
+            <span class="fu">|</span>] username age userId
+        <span class="kw">else</span> H.unitEx <span class="fu">$</span> [H.stmt<span class="fu">|</span>
+                <span class="dt">INSERT</span> <span class="dt">INTO</span> blacklist (username,age,uid) <span class="dt">VALUES</span> (<span class="fu">?</span>,<span class="fu">?</span>,<span class="fu">?</span>)
+            <span class="fu">|</span>] username age userId</code></pre></div>
+</section><section id="parsers" class="slide level2">
+<h1>Parsers</h1>
+<p>The paper builds a recursive descent parser using the list monad I introduced. It's really powerful, and doesn't take much code to write.</p>
+</section><section id="concurrency" class="slide level2">
+<h1>Concurrency</h1>
+<p>Monads can be used to implement Software Transactional Memory. Each function can be thought of as atomic, and the implementation resolves any conflicts.</p>
+<p>Doing Software Transactional Memory safely and correctly without monads is also really difficult. C# <a href="http://research.microsoft.com/en-us/downloads/6cfc842d-1c16-4739-afaf-edb35f544384/">tried to</a> and <a href="http://joeduffyblog.com/2010/01/03/a-brief-retrospective-on-transactional-memory/">failed</a>.</p>
 </section></section>
     </div>
   </div>

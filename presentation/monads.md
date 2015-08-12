@@ -302,6 +302,25 @@ func monadicImpl(str *mystr) *mystr {
 }
 ```
 
+## Easy glue
+
+```go
+func dec2Num(str *mystr) Maybe {
+    return Chain(Chain(Unit(str), decNum), decNum)
+}
+
+func monadicImpl(str *mystr) *mystr {
+    res := Chain(Chain(Chain(Chain(Chain(
+            Unit(str),
+            incNum),
+            decNum),
+            incNum),
+            decNum),
+            dec2Num)
+    return res.str
+}
+```
+
 ## What happens?
 
 ```go
@@ -490,6 +509,27 @@ for _, pos := range possibilities {
 fmt.Printf("\n")
 ```
 
+## Audience participation
+
+What would `Unit` and `Chain` be for lists?
+
+```go
+func Unit(val []byte) Either {
+    return Either{
+        err: nil,
+        val: val,
+    }
+}
+
+func Chain(val Either, f func([]byte) Either) Either {
+    if val.err != nil {
+        return Either{val.err, nil}
+    } else {
+        return f(val.val)
+    }
+}
+```
+
 ## Monads!
 
 ```go
@@ -531,3 +571,49 @@ fmt.Printf("\n")
 ```
 
 ## Demo
+
+# Advanced usage
+
+## Control Flow
+
+Haskell's type system allows you to write code generic to any monad, such as
+better control flow.
+
+For example:
+
+`forM` is roughly equivalent to a `for _, thing := range stuff` in go.
+
+`when` is roughly equivalent to an `if` statement.
+
+## Databases
+
+Designing a database library with monads gets you automatic transaction
+conflict resolution.
+
+```haskell
+ H.session conn $ H.tx Nothing $ do
+     (username,age) <- H.singleEx [H.stmt|
+             SELECT username, age FROM users WHERE id=?
+         |] userId
+     if age > 21
+         then H.unitEx $ [H.stmt|
+                INSERT INTO members (username,age,uid) VALUES (?,?,?)
+            |] username age userId
+        else H.unitEx $ [H.stmt|
+                INSERT INTO blacklist (username,age,uid) VALUES (?,?,?)
+            |] username age userId
+```
+
+## Parsers
+
+The paper builds a recursive descent parser using the list monad I introduced.
+It's really powerful, and doesn't take much code to write.
+
+## Concurrency
+
+Monads can be used to implement Software Transactional Memory. Each function
+can be thought of as atomic, and the implementation resolves any conflicts.
+
+Doing Software Transactional Memory safely and correctly without monads is also
+really difficult. C# [tried to](http://research.microsoft.com/en-us/downloads/6cfc842d-1c16-4739-afaf-edb35f544384/)
+and [failed](http://joeduffyblog.com/2010/01/03/a-brief-retrospective-on-transactional-memory/).
