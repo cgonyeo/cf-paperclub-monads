@@ -62,6 +62,16 @@ func normalImpl(val []byte) ([]byte, error) {
         return nil, res.err
     }
 
+    res = parseDigit(res.val)
+    if res.err != nil {
+        return nil, res.err
+    }
+
+    res = parseDigit(res.val)
+    if res.err != nil {
+        return nil, res.err
+    }
+
     res = parseCloudFlare(res.val)
     if res.err != nil {
         return nil, res.err
@@ -77,8 +87,10 @@ func normalImpl(val []byte) ([]byte, error) {
 }
 
 func monadicImpl(val []byte) ([]byte, error) {
-    res := Chain(Chain(Chain(Chain(
+    res := Chain(Chain(Chain(Chain(Chain(Chain(
              Unit(val),
+             parseDigit),
+             parseDigit),
              parseDigit),
              parseCloudFlare),
              parseDigit),
@@ -87,28 +99,28 @@ func monadicImpl(val []byte) ([]byte, error) {
 }
 
 func main() {
-    res, err := normalImpl([]byte("1CloudFlare23CloudFlare"))
+    res, err := normalImpl([]byte("111CloudFlare23CloudFlare"))
     if err != nil {
         fmt.Printf("Error encountered: %v\n", err)
     } else {
         fmt.Printf("Success. Resulting value: %s\n", string(res))
     }
 
-    res, err = normalImpl([]byte("1Akamai23CloudFlare"))
+    res, err = normalImpl([]byte("111Akamai23CloudFlare"))
     if err != nil {
         fmt.Printf("Error encountered: %v\n", err)
     } else {
         fmt.Printf("Success. Resulting value: %s\n", string(res))
     }
 
-    res, err = monadicImpl([]byte("1CloudFlare23CloudFlare"))
+    res, err = monadicImpl([]byte("111CloudFlare23CloudFlare"))
     if err != nil {
         fmt.Printf("Error encountered: %v\n", err)
     } else {
         fmt.Printf("Success. Resulting value: %s\n", string(res))
     }
 
-    res, err = monadicImpl([]byte("1Akamai23CloudFlare"))
+    res, err = monadicImpl([]byte("111Akamai23CloudFlare"))
     if err != nil {
         fmt.Printf("Error encountered: %v\n", err)
     } else {

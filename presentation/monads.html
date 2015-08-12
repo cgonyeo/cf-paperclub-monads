@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="author" content="Derek Gonyeo" />
+  <title>Monads for functional programming</title>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="reveal.js/css/reveal.css"/>
+  <style type="text/css">code{white-space: pre;}</style>
+  <style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code > span.dt { color: #902000; } /* DataType */
+code > span.dv { color: #40a070; } /* DecVal */
+code > span.bn { color: #40a070; } /* BaseN */
+code > span.fl { color: #40a070; } /* Float */
+code > span.ch { color: #4070a0; } /* Char */
+code > span.st { color: #4070a0; } /* String */
+code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code > span.ot { color: #007020; } /* Other */
+code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code > span.fu { color: #06287e; } /* Function */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #880000; } /* Constant */
+code > span.sc { color: #4070a0; } /* SpecialChar */
+code > span.vs { color: #4070a0; } /* VerbatimString */
+code > span.ss { color: #bb6688; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #19177c; } /* Variable */
+code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #666666; } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #bc7a00; } /* Preprocessor */
+code > span.at { color: #7d9029; } /* Attribute */
+code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+  </style>
+  <link rel="stylesheet" href="reveal.js/css/theme/moon.css" id="theme">
+  <!-- If the query includes 'print-pdf', include the PDF print sheet -->
+  <script>
+    if( window.location.search.match( /print-pdf/gi ) ) {
+      var link = document.createElement( 'link' );
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = 'reveal.js/css/print/pdf.css';
+      document.getElementsByTagName( 'head' )[0].appendChild( link );
+    }
+  </script>
+  <!--[if lt IE 9]>
+  <script src="reveal.js/lib/js/html5shiv.js"></script>
+  <![endif]-->
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+<section>
+    <h1 class="title">Monads for functional programming</h1>
+    <h2 class="author">Derek Gonyeo</h2>
+    <h3 class="date"></h3>
+</section>
+
+<section id="the-paper" class="slide level2">
+<h1>The Paper</h1>
+<p>Monads for functional programming</p>
+<p>By Philip Wadler at the University of Glasgow</p>
+<!-- 
+The paper introduces the concept of a monad and explains what it is, and uses
+three case studies to demonstrate that it is a useful pattern for emulating
+impure style effects in a pure environment.
+-->
+</section>
+<section><section id="a-go-example" class="titleslide slide level1"><h1>A Go Example</h1></section><section id="first-a-wrapper-type" class="slide level2">
+<h1>First: a wrapper type</h1>
+<p>Only one of the two fields is set. This will probably seem unnecessary at first.</p>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go"><span class="kw">type</span> Either <span class="kw">struct</span> {
+    err <span class="dt">error</span>
+    val []<span class="dt">byte</span>
+}</code></pre></div>
+</section><section id="random-function-1" class="slide level2">
+<h1>Random function #1</h1>
+<p>Takes a byte slice. If it starts with <code>&quot;CloudFlare&quot;</code>, it will remove the first 10 characters and return the rest of the slice. Otherwise it returns an error.</p>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go"><span class="kw">func</span> parseCloudFlare(val []<span class="dt">byte</span>) Either {
+    <span class="kw">if</span> bytes.HasPrefix(val, []<span class="dt">byte</span>(<span class="st">&quot;CloudFlare&quot;</span>)) {
+        <span class="kw">return</span> Either {
+            err: <span class="ot">nil</span>,
+            val: val[<span class="dv">10</span>:],
+        }
+    }
+    <span class="kw">return</span> Either {
+        err: fmt.Errorf(<span class="st">&quot;Doesn&#39;t start with </span><span class="ch">\&quot;</span><span class="st">CloudFlare</span><span class="ch">\&quot;</span><span class="st">: %s&quot;</span>, <span class="dt">string</span>(val)),
+        val: <span class="ot">nil</span>,
+    }
+}</code></pre></div>
+</section><section id="random-function-2" class="slide level2">
+<h1>Random function #2</h1>
+<p>Takes a byte slice. If it starts with a digit, it will remove the first character and return the rest of the slice. Otherwise it returns an error.</p>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go"><span class="kw">func</span> parseDigit(val []<span class="dt">byte</span>) Either {
+    <span class="kw">if</span> <span class="fu">len</span>(val) &gt; <span class="dv">0</span> {
+        first := val[<span class="dv">0</span>]
+        <span class="kw">if</span> first &gt;= <span class="dv">48</span> &amp;&amp; first &lt;= <span class="dv">57</span> {
+            <span class="kw">return</span> Either{
+                err: <span class="ot">nil</span>,
+                val: val[<span class="dv">1</span>:],
+            }
+        }
+    }
+    <span class="kw">return</span> Either {
+        err: fmt.Errorf(<span class="st">&quot;Doesn&#39;t start with a digit: %s&quot;</span>, <span class="dt">string</span>(val)),
+        val: <span class="ot">nil</span>,
+    }
+}</code></pre></div>
+</section><section id="error-handling-in-go" class="slide level2">
+<h1>Error handling in Go</h1>
+<p>A function that uses the two functions above. Crazy stuff here.</p>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go"><span class="kw">func</span> normalImpl(val []<span class="dt">byte</span>) ([]<span class="dt">byte</span>, <span class="dt">error</span>) {
+    res := parseDigit(val)
+    <span class="kw">if</span> res.err != <span class="ot">nil</span> {
+        <span class="kw">return</span> <span class="ot">nil</span>, res.err
+    }
+
+    res = parseCloudFlare(res.val)
+    <span class="kw">if</span> res.err != <span class="ot">nil</span> {
+        <span class="kw">return</span> <span class="ot">nil</span>, res.err
+    }
+
+    <span class="kw">return</span> res.val, res.err
+}</code></pre></div>
+</section><section id="what-would-happen" class="slide level2">
+<h1>What would happen?</h1>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go">res, err := normalImpl([]<span class="dt">byte</span>(<span class="st">&quot;1CloudFlare23CloudFlare&quot;</span>))
+<span class="kw">if</span> err != <span class="ot">nil</span> {
+    fmt.Printf(<span class="st">&quot;Error encountered: %v</span><span class="ch">\n</span><span class="st">&quot;</span>, err)
+} <span class="kw">else</span> {
+    fmt.Printf(<span class="st">&quot;Success. Resulting value: %s</span><span class="ch">\n</span><span class="st">&quot;</span>, <span class="dt">string</span>(res))
+}
+
+res, err = normalImpl([]<span class="dt">byte</span>(<span class="st">&quot;2Akamai23CloudFlare&quot;</span>))
+<span class="kw">if</span> err != <span class="ot">nil</span> {
+    fmt.Printf(<span class="st">&quot;Error encountered: %v</span><span class="ch">\n</span><span class="st">&quot;</span>, err)
+} <span class="kw">else</span> {
+    fmt.Printf(<span class="st">&quot;Success. Resulting value: %s</span><span class="ch">\n</span><span class="st">&quot;</span>, <span class="dt">string</span>(res))
+}</code></pre></div>
+</section><section id="remove-the-pattern" class="slide level2">
+<h1>Remove the pattern</h1>
+<p>Having four lines per function call to have error handling is obnoxious, especially when every block does the exact same thing. Let's make an abstraction to do that for us.</p>
+</section><section id="essentials-of-a-monad" class="slide level2">
+<h1>Essentials of a Monad</h1>
+<p>Unit takes a byte slice, and puts it in an <code>Either.</code> Chain take an <code>Either</code> and a function that takes a byte slice, and applies the function to the value in the <code>Either</code>.</p>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go"><span class="kw">func</span> Unit(val []<span class="dt">byte</span>) Either {
+    <span class="kw">return</span> Either{
+        err: <span class="ot">nil</span>,
+        val: val,
+    }
+}
+
+<span class="kw">func</span> Chain(val Either, f <span class="kw">func</span>([]<span class="dt">byte</span>) Either) Either {
+    <span class="kw">if</span> val.err != <span class="ot">nil</span> {
+        <span class="kw">return</span> Either{val.err, <span class="ot">nil</span>}
+    } <span class="kw">else</span> {
+        <span class="kw">return</span> f(val.val)
+    }
+}</code></pre></div>
+</section><section id="using-the-monad" class="slide level2">
+<h1>Using the monad</h1>
+<p>The monadic implementation inserts the value into an <code>Either</code> with <code>Unit</code>, and then uses <code>Chain</code> to connect the functions we want to call together.</p>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go"><span class="kw">func</span> monadicImpl(val []<span class="dt">byte</span>) ([]<span class="dt">byte</span>, <span class="dt">error</span>) {
+    res := Chain(Chain(
+             Unit(val),
+             parseDigit),
+             parseCloudFlare)
+    <span class="kw">return</span> res.val, res.err
+}</code></pre></div>
+</section><section id="demo" class="slide level2">
+<h1>Demo</h1>
+</section></section>
+<section><section id="maybe" class="titleslide slide level1"><h1>Maybe</h1></section><section id="new-wrapper-struct" class="slide level2">
+<h1>New wrapper struct</h1>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go"><span class="kw">type</span> mystr <span class="kw">struct</span> {
+    num <span class="dt">int</span>
+    msg <span class="dt">string</span>
+}
+
+<span class="kw">type</span> Maybe <span class="kw">struct</span> {
+    str *mystr
+}</code></pre></div>
+</section><section id="functions-using-mystr" class="slide level2">
+<h1>Functions using mystr</h1>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go"><span class="kw">func</span> incNum(str *mystr) Maybe {
+    str.num++
+    str.msg = str.msg + <span class="st">&quot; incNum&quot;</span>
+    <span class="kw">return</span> Maybe {
+        str: str,
+    }
+}
+
+<span class="kw">func</span> decNum(str *mystr) Maybe {
+    <span class="kw">if</span> str.num &gt; <span class="dv">0</span> {
+        str.num--
+        str.msg = str.msg + <span class="st">&quot; decNum&quot;</span>
+        <span class="kw">return</span> Maybe {
+            str: str,
+        }
+    }
+    <span class="kw">return</span> Maybe {
+        str: <span class="ot">nil</span>,
+    }
+}</code></pre></div>
+</section><section id="normal-usage" class="slide level2">
+<h1>Normal usage</h1>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go"><span class="kw">func</span> normalImpl(str *mystr) *mystr {
+    res := incNum(str)
+    <span class="kw">if</span> res.str == <span class="ot">nil</span> {
+        <span class="kw">return</span> <span class="ot">nil</span>
+    }
+
+    res = decNum(res.str)
+    <span class="kw">if</span> res.str == <span class="ot">nil</span> {
+        <span class="kw">return</span> <span class="ot">nil</span>
+    }
+
+    res = incNum(res.str)
+    <span class="kw">if</span> res.str == <span class="ot">nil</span> {
+        <span class="kw">return</span> <span class="ot">nil</span>
+    }
+
+    res = decNum(res.str)
+    <span class="kw">if</span> res.str == <span class="ot">nil</span> {
+        <span class="kw">return</span> <span class="ot">nil</span>
+    }
+
+    res = decNum(res.str)
+    <span class="kw">if</span> res.str == <span class="ot">nil</span> {
+        <span class="kw">return</span> <span class="ot">nil</span>
+    }
+
+    res = decNum(res.str)
+    <span class="kw">return</span> res.str
+}</code></pre></div>
+</section><section id="what-happens" class="slide level2">
+<h1>What happens?</h1>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go">str := normalImpl(&amp;mystr{num: <span class="dv">3</span>, msg: <span class="st">&quot;&quot;</span>})
+<span class="kw">if</span> str == <span class="ot">nil</span> {
+    fmt.Printf(<span class="st">&quot;Computation failed</span><span class="ch">\n</span><span class="st">&quot;</span>)
+} <span class="kw">else</span> {
+    fmt.Printf(<span class="st">&quot;Computation Result. num: %d, msg: %s</span><span class="ch">\n</span><span class="st">&quot;</span>,
+                        str.num, str.msg)
+}
+
+str = normalImpl(&amp;mystr{num: <span class="dv">1</span>, msg: <span class="st">&quot;&quot;</span>})
+<span class="kw">if</span> str == <span class="ot">nil</span> {
+    fmt.Printf(<span class="st">&quot;Computation failed</span><span class="ch">\n</span><span class="st">&quot;</span>)
+} <span class="kw">else</span> {
+    fmt.Printf(<span class="st">&quot;Computation Result. num: %d, msg: %s</span><span class="ch">\n</span><span class="st">&quot;</span>,
+                        str.num, str.msg)
+}</code></pre></div>
+</section><section id="more-monads" class="slide level2">
+<h1>More monads!</h1>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go"><span class="kw">func</span> Unit(val *mystr) Maybe {
+    <span class="kw">return</span> Maybe{
+        str: val,
+    }
+}
+
+<span class="kw">func</span> Chain(val Maybe, f <span class="kw">func</span>(*mystr) Maybe) Maybe {
+    <span class="kw">if</span> val.str == <span class="ot">nil</span> {
+        <span class="kw">return</span> Maybe{<span class="ot">nil</span>}
+    } <span class="kw">else</span> {
+        <span class="kw">return</span> f(val.str)
+    }
+}</code></pre></div>
+</section><section id="monadic-usage" class="slide level2">
+<h1>Monadic usage</h1>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go"><span class="kw">func</span> monadicImpl(str *mystr) *mystr {
+    res := Chain(Chain(Chain(Chain(Chain(Chain(
+            Unit(str),
+            incNum),
+            decNum),
+            incNum),
+            decNum),
+            decNum),
+            decNum)
+    <span class="kw">return</span> res.str
+}</code></pre></div>
+</section><section id="what-happens-1" class="slide level2">
+<h1>What happens?</h1>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go">str = monadicImpl(&amp;mystr{num: <span class="dv">3</span>, msg: <span class="st">&quot;&quot;</span>})
+<span class="kw">if</span> str == <span class="ot">nil</span> {
+    fmt.Printf(<span class="st">&quot;Computation failed</span><span class="ch">\n</span><span class="st">&quot;</span>)
+} <span class="kw">else</span> {
+    fmt.Printf(<span class="st">&quot;Computation Result. num: %d, msg: %s</span><span class="ch">\n</span><span class="st">&quot;</span>,
+                        str.num, str.msg)
+}
+
+str = monadicImpl(&amp;mystr{num: <span class="dv">1</span>, msg: <span class="st">&quot;&quot;</span>})
+<span class="kw">if</span> str == <span class="ot">nil</span> {
+    fmt.Printf(<span class="st">&quot;Computation failed</span><span class="ch">\n</span><span class="st">&quot;</span>)
+} <span class="kw">else</span> {
+    fmt.Printf(<span class="st">&quot;Computation Result. num: %d, msg: %s</span><span class="ch">\n</span><span class="st">&quot;</span>,
+                        str.num, str.msg)
+}</code></pre></div>
+</section></section>
+<section><section id="monad-laws" class="titleslide slide level1"><h1>Monad Laws</h1></section><section id="law-1" class="slide level2">
+<h1>Law 1</h1>
+<h3 id="left-identity">Left Identity</h3>
+<blockquote>
+<p>If we take a value, put it in a default context with return and then feed it to a function by using &gt;&gt;=, it's the same as just taking the value and applying the function to it.</p>
+</blockquote>
+<p><em>Learn You a Haskell For Great Good</em></p>
+</section><section id="law-1-1" class="slide level2">
+<h1>Law 1</h1>
+<p>Haskell:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">(return x) <span class="fu">&gt;&gt;=</span> f
+
+f x</code></pre></div>
+<p>Go:</p>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go">Chain(Unit(x), f)
+
+f(x)</code></pre></div>
+</section><section id="law-2" class="slide level2">
+<h1>Law 2</h1>
+<h3 id="right-identity">Right Identity</h3>
+<blockquote>
+<p>If we have a monadic value and we use &gt;&gt;= to feed it to return, the result is our original monadic value.</p>
+</blockquote>
+<p><em>Learn You a Haskell For Great Good</em></p>
+</section><section id="law-2-1" class="slide level2">
+<h1>Law 2</h1>
+<p>Haskell:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">x <span class="fu">&gt;&gt;=</span> return
+
+x</code></pre></div>
+<p>Go:</p>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go">Chain(x, Unit)
+
+x</code></pre></div>
+</section><section id="law-3" class="slide level2">
+<h1>Law 3</h1>
+<h3 id="associativity">Associativity</h3>
+<blockquote>
+<p>When we have a chain of monadic function applications with &gt;&gt;=, it shouldn't matter how they're nested.</p>
+</blockquote>
+<p><em>Learn You a Haskell For Great Good</em></p>
+</section><section id="law-3-1" class="slide level2">
+<h1>Law 3</h1>
+<p>Haskell:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">(x <span class="fu">&gt;&gt;=</span> f) <span class="fu">&gt;&gt;=</span> g
+
+x <span class="fu">&gt;&gt;=</span> (\y <span class="ot">-&gt;</span> f y <span class="fu">&gt;&gt;=</span> g)</code></pre></div>
+<p>Go:</p>
+<div class="sourceCode"><pre class="sourceCode go"><code class="sourceCode go">Chain(Chain(x, f), g)
+
+<span class="kw">func</span> apply(y []<span class="dt">byte</span>) Either {
+    Chain(f(y), g)
+}
+Chain(x, apply)</code></pre></div>
+</section></section>
+    </div>
+  </div>
+
+
+  <script src="reveal.js/lib/js/head.min.js"></script>
+  <script src="reveal.js/js/reveal.js"></script>
+
+  <script>
+
+      // Full list of configuration options available here:
+      // https://github.com/hakimel/reveal.js#configuration
+      Reveal.initialize({
+        controls: true,         // Display controls in the bottom right corner
+        progress: true,         // Display a presentation progress bar
+        history: true,          // Push each slide change to the browser history
+        center: true,                       // Vertical centering of slides
+        maxScale: 1.5,                  // Bounds for smallest/largest possible content scale
+        slideNumber: false,                // Display the page number of the current slide
+        theme: 'moon', // available themes are in /css/theme
+        transition: 'linear', // default/cube/page/concave/zoom/linear/fade/none
+
+        // Optional libraries used to extend on reveal.js
+        dependencies: [
+          { src: 'reveal.js/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: 'reveal.js/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+          { src: 'reveal.js/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } },
+//          { src: 'reveal.js/plugin/search/search.js', async: true, condition: function() { return !!document.body.classList; }, }
+//          { src: 'reveal.js/plugin/remotes/remotes.js', async: true, condition: function() { return !!document.body.classList; } }
+]});
+    </script>
+    </body>
+</html>
