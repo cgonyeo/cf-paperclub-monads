@@ -48,8 +48,8 @@ func parseCloudFlare(val []byte) Either {
 
 ## Random function #2
 
-Takes a byte slice. If it starts with a digit, it will remove the first
-character and return the rest of the slice. Otherwise it returns an error.
+Takes a byte slice. If it starts with a digit, remove the first
+character and return the rest of the slice. Else error.
 
 ```go
 func parseDigit(val []byte) Either {
@@ -247,6 +247,27 @@ if str == nil {
 }
 ```
 
+## Audience Participation
+
+What would the definitions of `Unit` and `Chain` be for `Maybe`?
+
+```go
+func Unit(val []byte) Either {
+    return Either{
+        err: nil,
+        val: val,
+    }
+}
+
+func Chain(val Either, f func([]byte) Either) Either {
+    if val.err != nil {
+        return Either{val.err, nil}
+    } else {
+        return f(val.val)
+    }
+}
+```
+
 ## More monads!
 
 ```go
@@ -300,6 +321,8 @@ if str == nil {
                         str.num, str.msg)
 }
 ```
+
+## Demo
 
 # Monad Laws
 
@@ -387,3 +410,124 @@ func apply(y []byte) Either {
 }
 Chain(x, apply)
 ```
+
+# A different example
+
+## Chess
+
+Objective: generate a list of locations a knight could move to from a given
+location in 3 turns.
+
+```go
+type Position struct {
+    x int
+    y int
+}
+```
+
+## Multiple choices
+
+```go
+func moveKnight(p Position) []Position {
+    var results []Position
+    if p.x - 3 >= 1 && p.y - 1 >= 1 {
+        results = append(results, Position{p.x - 3, p.y - 1})
+    }
+    if p.x - 3 >= 1 && p.y + 1 <= 8 {
+        results = append(results, Position{p.x - 3, p.y + 1})
+    }
+    if p.x + 3 <= 8 && p.y - 1 >= 1 {
+        results = append(results, Position{p.x + 3, p.y - 1})
+    }
+    if p.x + 3 <= 8 && p.y + 1 <= 8 {
+        results = append(results, Position{p.x + 3, p.y + 1})
+    }
+    if p.x - 1 >= 1 && p.y - 3 >= 1 {
+        results = append(results, Position{p.x - 1, p.y - 3})
+    }
+    if p.x - 1 >= 1 && p.y + 3 <= 8 {
+        results = append(results, Position{p.x - 1, p.y + 3})
+    }
+    if p.x + 1 <= 8 && p.y - 3 >= 1 {
+        results = append(results, Position{p.x + 1, p.y - 3})
+    }
+    if p.x + 1 <= 8 && p.y + 3 <= 8 {
+        results = append(results, Position{p.x + 1, p.y + 3})
+    }
+    return results
+}
+```
+
+## Normal usage
+
+```go
+func normalImpl(p Position) []Position {
+    possibilities := moveKnight(p)
+    var results []Position
+    for _, pos := range possibilities {
+        more_possibs := moveKnight(pos)
+        results = append(results, more_possibs...)
+    }
+
+    var more_results []Position
+    for _, pos := range results {
+        more_possibs := moveKnight(pos)
+        more_results = append(more_results, more_possibs...)
+    }
+
+    return more_results
+}
+```
+
+## What would this do?
+
+```go
+possibilities := normalImpl(Position{1,2})
+fmt.Printf("Possible locations after 3 turns: \n")
+for _, pos := range possibilities {
+    fmt.Printf("(%d,%d), ", pos.x, pos.y)
+}
+fmt.Printf("\n")
+```
+
+## Monads!
+
+```go
+func Unit(val Position) []Position {
+    return []Position{val}
+}
+
+func Chain(vals []Position, f func(Position) []Position) []Position {
+    var results []Position
+    for _, val := range vals {
+        positions := f(val)
+        results = append(results, positions...)
+    }
+    return results
+}
+```
+
+## Monadic usage
+
+```go
+func monadicImpl(p Position) []Position {
+    return Chain(Chain(Chain(
+                Unit(p),
+                moveKnight),
+                moveKnight),
+                moveKnight)
+}
+```
+
+## Same as before
+
+```go
+possibilities = monadicImpl(Position{1,2})
+fmt.Printf("Possible locations after 3 turns: \n")
+for _, pos := range possibilities {
+    fmt.Printf("(%d,%d), ", pos.x, pos.y)
+}
+fmt.Printf("\n")
+```
+
+## Demo
